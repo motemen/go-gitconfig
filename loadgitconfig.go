@@ -28,7 +28,7 @@ var (
 )
 
 func SourceFile(file string) Source {
-	return []string{"--file", file}
+	return Source{"--file", file}
 }
 
 type Config struct {
@@ -50,8 +50,9 @@ func (err Errors) Error() string {
 	return fmt.Sprintf("%d errors", len(err))
 }
 
-func (c Config) get(key string) ([]string, error) {
+func (c Config) get(key string, extraArgs ...string) ([]string, error) {
 	args := append([]string{"config", "--get-all", "--null"}, c.Source...)
+	args = append(args, extraArgs...)
 	args = append(args, key)
 
 	cmd := exec.Command("git", args...)
@@ -78,7 +79,7 @@ func (c Config) GetString(key string) (string, error) {
 		return "", err
 	}
 
-	return values[0], nil
+	return values[len(values)-1], nil
 }
 
 func (c Config) GetStrings(key string) ([]string, error) {
@@ -86,7 +87,7 @@ func (c Config) GetStrings(key string) ([]string, error) {
 }
 
 func (c Config) GetBool(key string) (bool, error) {
-	values, err := c.get(key)
+	values, err := c.get(key, "--bool")
 	if err != nil {
 		return false, err
 	}
@@ -95,7 +96,7 @@ func (c Config) GetBool(key string) (bool, error) {
 }
 
 func (c Config) GetInt64(key string) (int64, error) {
-	values, err := c.get(key)
+	values, err := c.get(key, "--int")
 	if err != nil {
 		return 0, err
 	}
@@ -151,12 +152,11 @@ func (c Config) Load(v interface{}) error {
 			}
 			fv.SetInt(i)
 
-		case reflect.Slice, reflect.Array:
+		case reflect.Slice:
 			ss, err := c.GetStrings(key)
 			if err != nil {
 				return err
 			}
-			fmt.Println(ss)
 
 			ssr := reflect.MakeSlice(reflect.TypeOf(ss), len(ss), len(ss))
 			for i, s := range ss {
@@ -164,6 +164,19 @@ func (c Config) Load(v interface{}) error {
 			}
 
 			fv.Set(ssr)
+
+		case reflect.Array:
+			ss, err := c.GetStrings(key)
+			if err != nil {
+				return err
+			}
+
+			for i := 0; i < fv.Len(); i++ {
+				if i >= len(ss) {
+					break
+				}
+				fv.Index(i).SetString(ss[i])
+			}
 
 		case reflect.Bool:
 			b, err := c.GetBool(key)
