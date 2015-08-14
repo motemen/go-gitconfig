@@ -23,17 +23,32 @@ import (
 type Source []string
 
 var (
-	SourceDefault Source = nil
-	SourceGlobal         = []string{"--global"}
-	SourceLocal          = []string{"--local"}
+	// SourceDefault is a default source (local and global).
+	SourceDefault Source
+	// SourceGlobal looks into global git config (e.g. ~/.gitconfig).
+	SourceGlobal = []string{"--global"}
+	// SourceLocal looks into local git config (e.g. .git/config).
+	SourceLocal = []string{"--local"}
 )
 
+// SourceFile is a source that looks into a specified file.
 func SourceFile(file string) Source {
 	return Source{"--file", file}
 }
 
+// Config is the main interface of gitconfig package.
 type Config struct {
 	Source Source
+}
+
+var (
+	Default = Config{}
+	Local   = Config{Source: SourceLocal}
+	Global  = Config{Source: SourceGlobal}
+)
+
+func File(file string) Config {
+	return Config{Source: SourceFile(file)}
 }
 
 type ErrInvalidKey string
