@@ -1,4 +1,4 @@
-// Package loadgitconfig provides functions to populate values into structs
+// Package gitconfig provides functions to populate values into structs
 // from Git config files.
 // "gitconfig" tag must be applied to exported fields of the struct:
 //
@@ -7,7 +7,7 @@
 //     Secure bool   `gitconfig:"my.secure"` // bool values are got using --bool
 //     Max    int    `gitconfig:"my.max"`    // int values are got using --int
 //   }
-package loadgitconfig
+package gitconfig
 
 import (
 	"fmt"
