@@ -86,6 +86,21 @@ func (c Config) GetStrings(key string) ([]string, error) {
 	return c.get(key)
 }
 
+// GetPath obtains one path value. e.g. "~" expands to home directory.
+func (c Config) GetPath(key string) (string, error) {
+	values, err := c.get(key, "--path")
+	if err != nil {
+		return "", err
+	}
+
+	return values[len(values)-1], nil
+}
+
+// GetPaths obtains multiple path values.
+func (c Config) GetPaths(key string) ([]string, error) {
+	return c.get(key, "--path")
+}
+
 // GetBool obtains one boolean value.
 func (c Config) GetBool(key string) (bool, error) {
 	values, err := c.get(key, "--bool")
