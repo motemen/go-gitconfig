@@ -19,6 +19,7 @@ import (
 	"syscall"
 )
 
+// Source is a source (global, local, file...) of git config.
 type Source []string
 
 var (
@@ -33,9 +34,6 @@ func SourceFile(file string) Source {
 
 type Config struct {
 	Source Source
-
-	// extra arguments to "git config"
-	CmdArgs []string
 }
 
 type ErrInvalidKey string
@@ -73,6 +71,7 @@ func (c Config) get(key string, extraArgs ...string) ([]string, error) {
 	return ss[:len(ss)-1], nil
 }
 
+// GetString obtains one string value.
 func (c Config) GetString(key string) (string, error) {
 	values, err := c.get(key)
 	if err != nil {
@@ -82,10 +81,12 @@ func (c Config) GetString(key string) (string, error) {
 	return values[len(values)-1], nil
 }
 
+// GetStrings obtains multiple string values.
 func (c Config) GetStrings(key string) ([]string, error) {
 	return c.get(key)
 }
 
+// GetBool obtains one boolean value.
 func (c Config) GetBool(key string) (bool, error) {
 	values, err := c.get(key, "--bool")
 	if err != nil {
@@ -95,6 +96,7 @@ func (c Config) GetBool(key string) (bool, error) {
 	return values[0] == "true", nil
 }
 
+// GetInt64 obtains one integer value.
 func (c Config) GetInt64(key string) (int64, error) {
 	values, err := c.get(key, "--int")
 	if err != nil {
@@ -104,6 +106,7 @@ func (c Config) GetInt64(key string) (int64, error) {
 	return strconv.ParseInt(values[0], 10, 64)
 }
 
+// Load loads git config values to a struct annotated with "gitconfig" tags.
 func (c Config) Load(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr {
