@@ -1,12 +1,4 @@
-// Package gitconfig provides functions to populate values into structs
-// from Git config files.
-// "gitconfig" tag must be applied to exported fields of the struct:
-//
-//   type config struct {
-//     Token  string `gitconfig:"my.token"`
-//     Secure bool   `gitconfig:"my.secure"` // bool values are got using --bool
-//     Max    int    `gitconfig:"my.max"`    // int values are got using --int
-//   }
+// Package gitconfig is an interface to `git config` for reading values.
 package gitconfig
 
 import (
@@ -36,19 +28,32 @@ func SourceFile(file string) Source {
 	return Source{"--file", file}
 }
 
+func SourceBlob(blob string) Source {
+	return Source{"--blob", blob}
+}
+
 // Config is the main interface of gitconfig package.
 type Config struct {
 	Source Source
 }
 
 var (
+	// Default reads git config from default source e.g. local and global.
 	Default = Config{}
-	Local   = Config{Source: SourceLocal}
-	Global  = Config{Source: SourceGlobal}
+	// Global reads git config from global source (e.g. ~/.gitconfig).
+	Global = Config{Source: SourceGlobal}
+	// Local reads git config from local source (e.g. .git/config).
+	Local = Config{Source: SourceLocal}
 )
 
+// File reads git config from specified file.
 func File(file string) Config {
 	return Config{Source: SourceFile(file)}
+}
+
+// Blob reads git config from specified blob.
+func Blob(blob string) Config {
+	return Config{Source: SourceBlob(blob)}
 }
 
 type ErrInvalidKey string
@@ -60,7 +65,13 @@ func (err ErrInvalidKey) Error() string {
 type Errors []error
 
 func (err Errors) Error() string {
-	return fmt.Sprintf("%d errors", len(err))
+	if len(err) == 0 {
+		return "no error"
+	} else if len(err) == 1 {
+		return err[0].Error()
+	} else {
+		return fmt.Sprintf("%s and %d error(s)", err[0].Error(), len(err)-1)
+	}
 }
 
 func (c Config) get(key string, extraArgs ...string) ([]string, error) {
@@ -140,16 +151,17 @@ func (c Config) GetInt64(key string) (int64, error) {
 func (c Config) Load(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr {
-		return fmt.Errorf("not a pointer")
+		return fmt.Errorf("not a pointer: %v", v)
 	}
 
 	rv = rv.Elem()
 	if rv.Kind() != reflect.Struct {
-		return fmt.Errorf("not a pointer to a struct")
+		return fmt.Errorf("not a pointer to a struct: %v", v)
 	}
 
 	t := rv.Type()
 
+	var errs Errors
 	for i := 0; i < t.NumField(); i++ {
 		ft := t.Field(i)
 		fv := rv.Field(i)
@@ -174,21 +186,24 @@ func (c Config) Load(v interface{}) error {
 		case reflect.String:
 			s, err := c.GetString(key)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue
 			}
 			fv.SetString(s)
 
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			i, err := c.GetInt64(key)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue
 			}
 			fv.SetInt(i)
 
 		case reflect.Slice:
 			ss, err := c.GetStrings(key)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue
 			}
 
 			ssr := reflect.MakeSlice(reflect.TypeOf(ss), len(ss), len(ss))
@@ -201,23 +216,30 @@ func (c Config) Load(v interface{}) error {
 		case reflect.Array:
 			ss, err := c.GetStrings(key)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue
 			}
 
-			for i := 0; i < fv.Len(); i++ {
-				if i >= len(ss) {
-					break
-				}
+			for i := 0; i < fv.Len() && i < len(ss); i++ {
 				fv.Index(i).SetString(ss[i])
 			}
 
 		case reflect.Bool:
 			b, err := c.GetBool(key)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue
 			}
 			fv.SetBool(b)
+
+		default:
+			err := fmt.Errorf("cannot populate field %q of type %s", ft.Name, ft.Type.String())
+			errs = append(errs, err)
 		}
+	}
+
+	if len(errs) > 0 {
+		return errs
 	}
 
 	return nil
