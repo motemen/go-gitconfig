@@ -120,7 +120,7 @@ func TestGetInt64(t *testing.T) {
 
 	i, err := GetInt64("gc.auto")
 	assert.NoError(err)
-	assert.Equal(6700, i)
+	assert.Equal(int64(6700), i)
 }
 
 func TestGetBool(t *testing.T) {
