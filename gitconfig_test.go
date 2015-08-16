@@ -65,14 +65,14 @@ func TestShowEnv(t *testing.T) {
 func TestGetString(t *testing.T) {
 	assert := assert.New(t)
 
-	paths, err := Default.GetStrings("ghq.root")
+	paths, err := GetStrings("ghq.root")
 	assert.NoError(err)
 	assert.Equal([]string{
 		"~/dev",
 		"~/go/src",
 	}, paths)
 
-	path, err := Default.GetString("ghq.root")
+	path, err := GetString("ghq.root")
 	assert.NoError(err)
 	assert.Equal(paths[1], path)
 }
@@ -80,14 +80,14 @@ func TestGetString(t *testing.T) {
 func TestGetPaths(t *testing.T) {
 	assert := assert.New(t)
 
-	paths, err := Default.GetPaths("ghq.root")
+	paths, err := GetPaths("ghq.root")
 	assert.NoError(err)
 	assert.Equal([]string{
 		filepath.Join(os.Getenv("HOME"), "dev"),
 		filepath.Join(os.Getenv("HOME"), "go", "src"),
 	}, paths)
 
-	path, err := Default.GetPath("ghq.root")
+	path, err := GetPath("ghq.root")
 	assert.NoError(err)
 	assert.Equal(paths[1], path)
 }
@@ -117,7 +117,7 @@ func TestBlob(t *testing.T) {
 func TestGetInt64(t *testing.T) {
 	assert := assert.New(t)
 
-	i, err := Default.GetInt64("gc.auto")
+	i, err := GetInt64("gc.auto")
 	assert.NoError(err)
 	assert.Equal(6700, i)
 }
@@ -126,13 +126,13 @@ func TestGetBool(t *testing.T) {
 	assert := assert.New(t)
 
 	{
-		b, err := Default.GetBool("merge.ff")
+		b, err := GetBool("merge.ff")
 		assert.NoError(err)
 		assert.Equal(false, b)
 	}
 
 	{
-		b, err := Default.GetBool("pull.rebase")
+		b, err := GetBool("pull.rebase")
 		assert.NoError(err)
 		assert.Equal(true, b)
 	}
@@ -173,7 +173,7 @@ func TestLoad(t *testing.T) {
 	}
 
 	var v s
-	err := Default.Load(&v)
+	err := Load(&v)
 	assert.Nil(err)
 	assert.Equal(
 		s{
@@ -199,7 +199,7 @@ func TestLoad_Errors(t *testing.T) {
 	}
 
 	var v s
-	err := Default.Load(&v)
+	err := Load(&v)
 	assert.Error(err)
 
 	if m, ok := err.(LoadError); assert.True(ok) {
