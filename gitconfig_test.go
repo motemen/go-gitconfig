@@ -203,9 +203,13 @@ func TestLoad_Errors(t *testing.T) {
 	assert.Error(err)
 
 	if m, ok := err.(LoadError); assert.True(ok) {
-		assert.Equal(InvalidKeyError("invalidkey"), m.OfField("InvalidKey"))
-		assert.NotNil(m.OfField("InvalidType")) // TODO: "fatal: bad numeric config value ..."
-		assert.Error(m.OfField("InvalidType2"), `cannot populate field "InvalidType2" of type *gitconfig.s`)
+		assert.Error(m.OfField("InvalidKey"))
+		assert.Error(m.OfField("InvalidType"))
+		assert.Error(m.OfField("InvalidType2"))
 		assert.Nil(m.OfField("UserEmail"))
+
+		assert.True(IsInvalidKeyError(m.OfField("InvalidKey")))
+		assert.False(IsInvalidKeyError(m.OfField("InvalidType")))
+		assert.False(IsInvalidKeyError(m.OfField("InvalidType2")))
 	}
 }

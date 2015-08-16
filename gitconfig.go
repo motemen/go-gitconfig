@@ -2,8 +2,8 @@
 package gitconfig
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os/exec"
 	"reflect"
 	"strconv"
@@ -57,11 +57,26 @@ func Blob(blob string) Config {
 	return Config{Source: SourceBlob(blob)}
 }
 
-// InvalidKeyError represents an error for an invalid config key.
-type InvalidKeyError string
+// IsInvalidKeyError returns true if the given err is a RunError
+// corresponding to "invalid key" error of "git config".
+func IsInvalidKeyError(err error) bool {
+	if err, ok := err.(RunError); ok {
+		if waitStatus, ok := err.Err.Sys().(syscall.WaitStatus); ok {
+			return waitStatus.ExitStatus() == 1
+		}
+	}
 
-func (err InvalidKeyError) Error() string {
-	return "invalid key: " + string(err)
+	return false
+}
+
+// RunError is a general error for "git config" failure.
+type RunError struct {
+	Msg string
+	Err *exec.ExitError
+}
+
+func (err RunError) Error() string {
+	return err.Err.Error() + ": " + err.Msg
 }
 
 // LoadError is an error type for Load().
@@ -95,21 +110,25 @@ func (m LoadError) Any() LoadError {
 }
 
 func (c Config) get(key string, extraArgs ...string) ([]string, error) {
-	args := append([]string{"config", "--get-all", "--null"}, c.Source...)
+	args := []string{"config", "--get-all", "--null"}
+	args = append(args, c.Source...)
 	args = append(args, extraArgs...)
 	args = append(args, key)
 
+	var stderr bytes.Buffer
 	cmd := exec.Command("git", args...)
-	cmd.Stderr = ioutil.Discard
+	cmd.Stderr = &stderr
 
 	out, err := cmd.Output()
 
-	if exitError, ok := err.(*exec.ExitError); ok {
-		if waitStatus, ok := exitError.Sys().(syscall.WaitStatus); ok {
-			if waitStatus.ExitStatus() == 1 {
-				return nil, InvalidKeyError(key)
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return nil, RunError{
+				Msg: strings.TrimRight(stderr.String(), "\n"),
+				Err: exitError,
 			}
 		}
+
 		return nil, err
 	}
 
