@@ -64,6 +64,7 @@ func (err InvalidKeyError) Error() string {
 	return "invalid key: " + string(err)
 }
 
+// LoadError is an error type for Load().
 type LoadError map[string]error
 
 func (m LoadError) Error() string {
@@ -79,10 +80,12 @@ func (m LoadError) Error() string {
 	return strings.Join(ee, "\n")
 }
 
+// OfField returns the error corresponding to a given field.
 func (m LoadError) OfField(name string) error {
 	return m[name]
 }
 
+// Any returns nil if there was actually no error, and itself otherwise.
 func (m LoadError) Any() LoadError {
 	if len(m) == 0 {
 		return nil
