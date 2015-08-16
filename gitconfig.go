@@ -1,4 +1,22 @@
-// Package gitconfig is an interface to `git config` for reading values.
+// Package gitconfig is an interface to "git config" for reading values.
+//
+// The GetXXX methods return values of their corresponding types,
+// or errors if "git config" fails e.g. when the key was invalid.
+//
+// Use Default (or gitconfig package itself), Global, Local, File(file) and Blob(blob) as an entrypoint
+// to a specific config source. They correspond to flags below:
+//   Default    (none)
+//   Global     --global
+//   Local      --local
+//   File(file) --file <file>
+//   Blob(blob) --blob <blob>
+//
+// Use Load method for loading multiple config values to a struct with fields tagged "gitconfig".
+//   type Config struct {
+//     UserEmail  string `gitconfig:"user.email"`
+//     PullRebase bool   `gitconfig:"pull.rebase"`
+//   }
+// Supported types are string, []string, bool and int families.
 package gitconfig
 
 import (
