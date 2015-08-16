@@ -2,6 +2,8 @@
 
 Go library for loading git config
 
+[GoDoc](http://godoc.org/github.com/motemen/go-gitconfig)
+
 ## Synopsis
 
 ### Struct loading
@@ -11,12 +13,13 @@ import "github.com/motemen/go-gitconfig"
 
 type C struct {
     UserEmail  string `gitconfig:"user.email"`
-    PullRebase string `gitconfig:"pull.rebase"`
+    PullRebase bool   `gitconfig:"pull.rebase"`
 }
 
 func main() {
     var config C
-    gitconfig.Load(&config)
+    err := gitconfig.Load(&config)
+    ...
 }
 ```
 
