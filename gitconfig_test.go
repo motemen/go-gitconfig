@@ -187,3 +187,25 @@ func TestLoad(t *testing.T) {
 		v,
 	)
 }
+
+func TestLoad_Errors(t *testing.T) {
+	assert := assert.New(t)
+
+	type s struct {
+		UserEmail    string `gitconfig:"user.email"`
+		InvalidKey   string `gitconfig:"invalidkey"`
+		InvalidType  bool   `gitconfig:"user.email"`
+		InvalidType2 *s     `gitconfig:"gc.auto"`
+	}
+
+	var v s
+	err := Default.Load(&v)
+	assert.Error(err)
+
+	if m, ok := err.(LoadError); assert.True(ok) {
+		assert.Equal(InvalidKeyError("invalidkey"), m.OfField("InvalidKey"))
+		assert.NotNil(m.OfField("InvalidType")) // TODO: "fatal: bad numeric config value ..."
+		assert.Error(m.OfField("InvalidType2"), `cannot populate field "InvalidType2" of type *gitconfig.s`)
+		assert.Nil(m.OfField("UserEmail"))
+	}
+}

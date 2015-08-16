@@ -15,11 +15,11 @@ import (
 type Source []string
 
 var (
-	// SourceDefault is a default source (local and global).
+	// SourceDefault is a default source (local, global and system).
 	SourceDefault Source
-	// SourceGlobal looks into global git config (e.g. ~/.gitconfig).
+	// SourceGlobal looks into global git config (eg. ~/.gitconfig).
 	SourceGlobal = []string{"--global"}
-	// SourceLocal looks into local git config (e.g. .git/config).
+	// SourceLocal looks into local git config (eg. .git/config).
 	SourceLocal = []string{"--local"}
 )
 
@@ -28,6 +28,7 @@ func SourceFile(file string) Source {
 	return Source{"--file", file}
 }
 
+// SourceBlob is a source that looks into a specified blob (eg. HEAD:.gitmodules)
 func SourceBlob(blob string) Source {
 	return Source{"--blob", blob}
 }
@@ -38,11 +39,11 @@ type Config struct {
 }
 
 var (
-	// Default reads git config from default source e.g. local and global.
+	// Default reads git config from default source i.e. local, global and system
 	Default = Config{}
-	// Global reads git config from global source (e.g. ~/.gitconfig).
+	// Global reads git config from global source (eg. ~/.gitconfig).
 	Global = Config{Source: SourceGlobal}
-	// Local reads git config from local source (e.g. .git/config).
+	// Local reads git config from local source (eg. .git/config).
 	Local = Config{Source: SourceLocal}
 )
 
@@ -56,22 +57,38 @@ func Blob(blob string) Config {
 	return Config{Source: SourceBlob(blob)}
 }
 
-type ErrInvalidKey string
+// InvalidKeyError represents an error for an invalid config key.
+type InvalidKeyError string
 
-func (err ErrInvalidKey) Error() string {
+func (err InvalidKeyError) Error() string {
 	return "invalid key: " + string(err)
 }
 
-type Errors []error
+type LoadError map[string]error
 
-func (err Errors) Error() string {
-	if len(err) == 0 {
-		return "no error"
-	} else if len(err) == 1 {
-		return err[0].Error()
-	} else {
-		return fmt.Sprintf("%s and %d error(s)", err[0].Error(), len(err)-1)
+func (m LoadError) Error() string {
+	if len(m) == 0 {
+		return "(no error)"
 	}
+
+	ee := make([]string, 0, len(m))
+	for name, err := range m {
+		ee = append(ee, fmt.Sprintf("field %q: %s", name, err))
+	}
+
+	return strings.Join(ee, "\n")
+}
+
+func (m LoadError) OfField(name string) error {
+	return m[name]
+}
+
+func (m LoadError) Any() LoadError {
+	if len(m) == 0 {
+		return nil
+	}
+
+	return m
 }
 
 func (c Config) get(key string, extraArgs ...string) ([]string, error) {
@@ -87,7 +104,7 @@ func (c Config) get(key string, extraArgs ...string) ([]string, error) {
 	if exitError, ok := err.(*exec.ExitError); ok {
 		if waitStatus, ok := exitError.Sys().(syscall.WaitStatus); ok {
 			if waitStatus.ExitStatus() == 1 {
-				return nil, ErrInvalidKey(key)
+				return nil, InvalidKeyError(key)
 			}
 		}
 		return nil, err
@@ -112,7 +129,7 @@ func (c Config) GetStrings(key string) ([]string, error) {
 	return c.get(key)
 }
 
-// GetPath obtains one path value. e.g. "~" expands to home directory.
+// GetPath obtains one path value. eg. "~" expands to home directory.
 func (c Config) GetPath(key string) (string, error) {
 	values, err := c.get(key, "--path")
 	if err != nil {
@@ -161,7 +178,7 @@ func (c Config) Load(v interface{}) error {
 
 	t := rv.Type()
 
-	var errs Errors
+	errs := LoadError{}
 	for i := 0; i < t.NumField(); i++ {
 		ft := t.Field(i)
 		fv := rv.Field(i)
@@ -186,7 +203,7 @@ func (c Config) Load(v interface{}) error {
 		case reflect.String:
 			s, err := c.GetString(key)
 			if err != nil {
-				errs = append(errs, err)
+				errs[ft.Name] = err
 				continue
 			}
 			fv.SetString(s)
@@ -194,7 +211,7 @@ func (c Config) Load(v interface{}) error {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			i, err := c.GetInt64(key)
 			if err != nil {
-				errs = append(errs, err)
+				errs[ft.Name] = err
 				continue
 			}
 			fv.SetInt(i)
@@ -202,7 +219,7 @@ func (c Config) Load(v interface{}) error {
 		case reflect.Slice:
 			ss, err := c.GetStrings(key)
 			if err != nil {
-				errs = append(errs, err)
+				errs[ft.Name] = err
 				continue
 			}
 
@@ -216,7 +233,7 @@ func (c Config) Load(v interface{}) error {
 		case reflect.Array:
 			ss, err := c.GetStrings(key)
 			if err != nil {
-				errs = append(errs, err)
+				errs[ft.Name] = err
 				continue
 			}
 
@@ -227,20 +244,16 @@ func (c Config) Load(v interface{}) error {
 		case reflect.Bool:
 			b, err := c.GetBool(key)
 			if err != nil {
-				errs = append(errs, err)
+				errs[ft.Name] = err
 				continue
 			}
 			fv.SetBool(b)
 
 		default:
 			err := fmt.Errorf("cannot populate field %q of type %s", ft.Name, ft.Type.String())
-			errs = append(errs, err)
+			errs[ft.Name] = err
 		}
 	}
 
-	if len(errs) > 0 {
-		return errs
-	}
-
-	return nil
+	return errs.Any()
 }
