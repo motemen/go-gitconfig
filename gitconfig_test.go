@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	must(os.Setenv("HOME", tmpHome))
 
 	must(run("git", "init"))
+	must(run("git", "config", "--global", "user.name", "go-gitconfig test"))
 	must(run("git", "config", "--global", "user.email", "global@example.com"))
 	must(run("git", "config", "--global", "merge.ff", "false"))
 	must(run("git", "config", "--global", "pull.rebase", "true"))
