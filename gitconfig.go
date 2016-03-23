@@ -54,6 +54,7 @@ func SourceBlob(blob string) Source {
 // Config is the main interface of gitconfig package.
 type Config struct {
 	Source Source
+	Dir    string
 }
 
 var (
@@ -136,6 +137,9 @@ func (c Config) get(key string, extraArgs ...string) ([]string, error) {
 	var stderr bytes.Buffer
 	cmd := exec.Command("git", args...)
 	cmd.Stderr = &stderr
+	if c.Dir != "" {
+		cmd.Dir = c.Dir
+	}
 
 	out, err := cmd.Output()
 
