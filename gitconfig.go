@@ -119,15 +119,6 @@ func (m LoadError) OfField(name string) error {
 	return m[name]
 }
 
-// Any returns nil if there was actually no error, and itself otherwise.
-func (m LoadError) Any() LoadError {
-	if len(m) == 0 {
-		return nil
-	}
-
-	return m
-}
-
 func (c Config) get(key string, extraArgs ...string) ([]string, error) {
 	args := []string{"config", "--get-all", "--null"}
 	args = append(args, c.Source...)
@@ -299,5 +290,9 @@ func (c Config) Load(v interface{}) error {
 		}
 	}
 
-	return errs.Any()
+	if len(errs) == 0 {
+		return nil
+	}
+
+	return errs
 }
